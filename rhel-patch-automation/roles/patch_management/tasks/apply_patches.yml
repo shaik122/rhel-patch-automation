@@ -1,0 +1,55 @@
+---
+- name: Apply security-only updates
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    security: true
+    exclude: "{{ patch_excluded_packages | join(',') if patch_excluded_packages else omit }}"
+  register: patch_result
+  when: patch_security_only
+
+- name: Apply all available updates
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    exclude: "{{ patch_excluded_packages | join(',') if patch_excluded_packages else omit }}"
+  register: patch_result
+  when: not patch_security_only
+
+- name: Record post-patch dnf transaction id
+  ansible.builtin.shell: |
+    set -o pipefail
+    dnf history list | awk 'NR==3 {print $1}'
+  args:
+    executable: /bin/bash
+  register: post_patch_transaction_id
+  changed_when: false
+
+- name: Append patch result to pre-patch state file
+  ansible.builtin.blockinfile:
+    path: "{{ patch_state_dir }}/{{ inventory_hostname }}_pre_patch_state.yml"
+    block: |
+      post_patch_transaction_id: {{ post_patch_transaction_id.stdout | trim }}
+      patch_run_changed: {{ patch_result.changed | default(false) }}
+      patch_mode: {{ 'security-only' if patch_security_only else 'full' }}
+    marker: "# {mark} PATCH RESULT"
+  delegate_to: localhost
+  become: false
+
+- name: Check whether a reboot is required after patching
+  ansible.builtin.command: needs-restarting -r
+  register: needs_restarting
+  changed_when: false
+  failed_when: false
+  # needs-restarting exits 1 when a reboot IS required, 0 when it is not
+
+- name: Set fact - reboot required
+  ansible.builtin.set_fact:
+    patch_reboot_required: "{{ needs_restarting.rc == 1 }}"
+
+- name: Notify handlers if reboot is required and allowed
+  ansible.builtin.debug:
+    msg: "Reboot required for {{ inventory_hostname }}: {{ patch_reboot_required }} (allowed: {{ patch_reboot_allowed }})"
+  changed_when: patch_reboot_required and patch_reboot_allowed
+  notify: "reboot if required"
+  when: patch_reboot_required

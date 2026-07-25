@@ -1,0 +1,44 @@
+---
+- name: Ensure yum-utils (needs-restarting) is installed
+  ansible.builtin.dnf:
+    name: yum-utils
+    state: present
+  register: yum_utils_install
+  retries: 2
+  delay: 5
+  until: yum_utils_install is succeeded
+
+- name: Check host is registered with Red Hat Subscription Manager
+  ansible.builtin.command: subscription-manager status
+  register: subscription_status
+  changed_when: false
+  failed_when: false
+  when: ansible_distribution == "RedHat"
+
+- name: Warn if host is not properly subscribed
+  ansible.builtin.debug:
+    msg: >
+      WARNING: {{ inventory_hostname }} does not report a valid subscription
+      status. Patch sources may be unavailable. Output:
+      {{ subscription_status.stdout | default('n/a') }}
+  when:
+    - ansible_distribution == "RedHat"
+    - subscription_status.rc is defined
+    - subscription_status.rc != 0
+
+- name: Check available disk space on /
+  ansible.builtin.shell: |
+    set -o pipefail
+    df --output=avail -B1 / | tail -n1
+  args:
+    executable: /bin/bash
+  register: root_free_bytes
+  changed_when: false
+
+- name: Fail if free space on / is below 1GB (dnf transactions need headroom)
+  ansible.builtin.fail:
+    msg: "Less than 1GB free on / ({{ root_free_bytes.stdout | trim }} bytes). Aborting patch run for this host."
+  when: (root_free_bytes.stdout | trim | int) < 1073741824
+
+- name: Confirm host is reachable and responsive (baseline for post-check comparison)
+  ansible.builtin.ping:

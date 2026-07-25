@@ -1,0 +1,51 @@
+---
+- name: List available security errata
+  ansible.builtin.command: dnf updateinfo list security --quiet
+  register: security_errata_raw
+  changed_when: false
+  failed_when: false
+
+- name: Parse security errata into structured records
+  ansible.builtin.set_fact:
+    security_advisories: "{{ security_errata_raw.stdout_lines | default([]) | parse_updateinfo }}"
+
+- name: Check total available updates (dry-run)
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+  check_mode: true
+  register: all_updates_check
+
+- name: Check subscription-manager status (RHEL only)
+  ansible.builtin.command: subscription-manager status
+  register: subscription_status
+  changed_when: false
+  failed_when: false
+  when: ansible_distribution == "RedHat"
+
+- name: Check insights-client registration status (RHEL only)
+  ansible.builtin.command: insights-client --status
+  register: insights_status
+  changed_when: false
+  failed_when: false
+  when: ansible_distribution == "RedHat"
+
+- name: Build per-host compliance record
+  ansible.builtin.set_fact:
+    compliance_record:
+      host: "{{ inventory_hostname }}"
+      os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+      environment: "{{ patch_environment | default('unknown') }}"
+      total_pending_updates: "{{ all_updates_check.results | default([]) | length }}"
+      security_advisory_count: "{{ security_advisories | length }}"
+      critical_count: "{{ security_advisories | severity_count('Critical') }}"
+      important_count: "{{ security_advisories | severity_count('Important') }}"
+      moderate_count: "{{ security_advisories | severity_count('Moderate') }}"
+      low_count: "{{ security_advisories | severity_count('Low') }}"
+      security_advisories: "{{ security_advisories }}"
+      subscribed: >-
+        {{ (subscription_status.rc | default(1)) == 0
+           if ansible_distribution == "RedHat" else "n/a" }}
+      insights_registered: >-
+        {{ (insights_status.rc | default(1)) == 0
+           if ansible_distribution == "RedHat" else "n/a" }}

@@ -1,0 +1,5 @@
+---
+patch_report_dir: "{{ playbook_dir }}/../reports"
+compliance_report_formats:
+  - markdown
+  - html

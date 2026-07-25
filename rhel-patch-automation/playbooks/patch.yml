@@ -1,0 +1,30 @@
+---
+# Patches the fleet in batches. Batch groups (e.g. rhel8_batch1, rhel8_batch2)
+# are defined in the inventory so a failure in an early batch stops the run
+# before later batches are touched.
+#
+# Usage:
+#   ansible-playbook -i inventories/production playbooks/patch.yml --check --diff
+#   ansible-playbook -i inventories/production playbooks/patch.yml -e "patch_security_only=true"
+#   ansible-playbook -i inventories/production playbooks/patch.yml -e "patch_reboot_allowed=true"
+
+- name: Patch RHEL fleet (staged rollout)
+  hosts: rhel8_servers:rhel9_servers
+  serial: "25%"
+  max_fail_percentage: 20
+  gather_facts: true
+  roles:
+    - patch_management
+
+- name: Patch standalone/critical hosts (no batching, one at a time)
+  hosts: db_servers
+  serial: 1
+  gather_facts: true
+  roles:
+    - patch_management
+
+- name: Generate consolidated compliance report for this run
+  hosts: rhel8_servers:rhel9_servers:db_servers
+  gather_facts: true
+  roles:
+    - compliance_reporting

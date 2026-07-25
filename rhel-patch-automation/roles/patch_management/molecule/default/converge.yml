@@ -1,0 +1,11 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    patch_report_dir: /tmp/patch-reports
+    patch_state_dir: /tmp/patch-reports/state
+  tasks:
+    - name: Include patch_management role
+      ansible.builtin.include_role:
+        name: patch_management

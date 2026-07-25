@@ -1,0 +1,28 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: sshd must be active after the role runs
+      ansible.builtin.command: systemctl is-active sshd
+      register: sshd_state
+      changed_when: false
+
+    - name: Assert sshd is active
+      ansible.builtin.assert:
+        that:
+          - sshd_state.stdout == "active"
+        fail_msg: "sshd is not active after patch_management ran"
+
+    - name: Pre-patch state file must exist on the control node
+      ansible.builtin.stat:
+        path: "/tmp/patch-reports/state/{{ inventory_hostname }}_pre_patch_state.yml"
+      delegate_to: localhost
+      become: false
+      register: state_file
+
+    - name: Assert state file was written
+      ansible.builtin.assert:
+        that:
+          - state_file.stat.exists
+        fail_msg: "Pre-patch state file was not written for {{ inventory_hostname }}"

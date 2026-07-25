@@ -1,0 +1,6 @@
+---
+- name: Gather per-host compliance data
+  ansible.builtin.include_tasks: gather_compliance.yml
+
+- name: Aggregate and render the fleet-wide report
+  ansible.builtin.include_tasks: aggregate_report.yml

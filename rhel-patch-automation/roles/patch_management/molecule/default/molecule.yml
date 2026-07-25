@@ -1,0 +1,30 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: rocky9-patch-target
+    image: rockylinux/rockylinux:9-ubi
+    pre_build_image: true
+    command: /usr/sbin/init
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    cgroupns_mode: host
+    privileged: true
+provisioner:
+  name: ansible
+  inventory:
+    group_vars:
+      all:
+        patch_security_only: false
+        patch_reboot_allowed: false
+        patch_lvm_snapshot_enabled: false
+        patch_excluded_packages: []
+        patch_critical_services:
+          - sshd
+verifier:
+  name: ansible

@@ -1,0 +1,14 @@
+*.retry
+reports/
+.vault_pass
+*.pem
+.molecule/
+__pycache__/
+*.pyc
+.cache/
+*.log
+.vagrant/
+.venv/
+venv/
+.idea/
+.DS_Store

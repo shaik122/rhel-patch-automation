@@ -1,0 +1,16 @@
+---
+# Only reached when patch_reboot_allowed is true AND updates were applied.
+# The actual reboot is queued as a handler in apply_patches.yml; flushing
+# here executes it in-place rather than waiting for end-of-play, so
+# post_checks.yml can safely assume the host is already back up.
+
+- name: Flush handlers to execute pending reboot now
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for host to become reachable again over SSH
+  ansible.builtin.wait_for_connection:
+    delay: 10
+    timeout: "{{ patch_reboot_timeout }}"
+
+- name: Gather facts again after reboot
+  ansible.builtin.setup:

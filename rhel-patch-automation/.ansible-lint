@@ -1,0 +1,29 @@
+---
+profile: production
+
+exclude_paths:
+  - .github/
+  - roles/patch_management/molecule/
+
+# Both skips below are deliberate design choices, not oversights:
+#
+# var-naming[no-role-prefix]: this rule wants every role variable prefixed
+# with the role name (e.g. patch_management_reboot_allowed instead of
+# patch_reboot_allowed). This repo intentionally shares a flat "patch_*"
+# variable namespace across both roles (patch_environment, patch_summary,
+# compliance_record, etc. flow from patch_management into
+# compliance_reporting via hostvars) and keeps role-facing variables like
+# patch_reboot_allowed short, since they're the public API operators set on
+# the command line (-e patch_reboot_allowed=true reads better than
+# -e patch_management_reboot_allowed=true).
+#
+# package-latest: dnf tasks use state: latest with name: "*" deliberately —
+# that is the entire point of a patching role. Pinning to specific versions
+# would defeat the purpose.
+skip_list:
+  - "yaml[line-length]"
+  - "var-naming[no-role-prefix]"
+  - "package-latest"
+
+warn_list:
+  - experimental

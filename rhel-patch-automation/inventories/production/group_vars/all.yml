@@ -1,0 +1,27 @@
+---
+ansible_user: svc_ansible
+ansible_python_interpreter: /usr/bin/python3
+
+# Environment identity, used in report headers/filenames
+patch_environment: production
+
+# Production defaults to security-only patching and no automatic reboots.
+# Override per-run with -e, or per-group below.
+patch_security_only: true
+patch_reboot_allowed: false
+patch_lvm_snapshot_enabled: true
+
+# Packages that should never be auto-updated in production without
+# a manual change ticket (example: pinned kernel, DB engine).
+patch_excluded_packages:
+  - kernel*
+  - postgresql-server
+
+# Where reports land on the control node
+patch_report_dir: "{{ playbook_dir }}/../reports"
+
+# Services that must be active after patching for the host to be
+# considered healthy. Extend per-group/per-host as needed.
+patch_critical_services:
+  - sshd
+  - chronyd

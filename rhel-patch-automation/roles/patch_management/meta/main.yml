@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  role_name: patch_management
+  author: "<your-name>"
+  description: >
+    Staged, auditable patch automation for RHEL 8/9: pre-checks, optional
+    LVM snapshot, patch application (security-only or full), reboot
+    orchestration, and post-patch service validation.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+  galaxy_tags:
+    - system
+    - rhel
+    - patching
+    - compliance
+
+dependencies: []

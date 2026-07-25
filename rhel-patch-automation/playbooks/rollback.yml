@@ -1,0 +1,67 @@
+---
+# Rolls back the dnf transaction applied by a specific prior patch run,
+# using the transaction id recorded in reports/state/<host>_pre_patch_state.yml
+# by roles/patch_management/tasks/apply_patches.yml.
+#
+# This is a targeted `dnf history undo`, not a full system restore. If you
+# enabled patch_lvm_snapshot_enabled, restoring the LVM snapshot instead is
+# usually faster and safer for a bad patch run — this playbook only handles
+# the dnf-level rollback.
+#
+# Usage:
+#   ansible-playbook -i inventories/production playbooks/rollback.yml \
+#     --limit web01.example.internal
+#
+# By design this playbook is NOT batched/staged — rollbacks are deliberate,
+# host-by-host actions you run after investigating a specific failure.
+
+- name: Roll back the most recent patch transaction
+  hosts: all
+  gather_facts: false
+  serial: 1
+  vars:
+    patch_state_dir: "{{ playbook_dir }}/../reports/state"
+
+  tasks:
+    - name: Read captured pre-patch state for this host
+      ansible.builtin.set_fact:
+        pre_patch_state: "{{ lookup('file', patch_state_dir + '/' + inventory_hostname + '_pre_patch_state.yml') | from_yaml }}"
+      delegate_to: localhost
+
+    - name: Fail if no post_patch_transaction_id was recorded (nothing to undo)
+      ansible.builtin.fail:
+        msg: >
+          No post_patch_transaction_id found for {{ inventory_hostname }} in
+          {{ patch_state_dir }}. Either no patch run has been recorded for
+          this host, or the state file predates this feature.
+      when: pre_patch_state.post_patch_transaction_id is not defined
+
+    - name: Confirm before proceeding
+      ansible.builtin.pause:
+        prompt: >-
+          About to run `dnf history undo {{ pre_patch_state.post_patch_transaction_id }}`
+          on {{ inventory_hostname }} (pre-patch transaction was
+          {{ pre_patch_state.pre_patch_transaction_id }}). Press Enter to continue, Ctrl+C to abort.
+
+    - name: Undo the recorded dnf transaction
+      ansible.builtin.command: "dnf history undo {{ pre_patch_state.post_patch_transaction_id }} -y"
+      register: rollback_result
+      changed_when: "'Nothing to do' not in rollback_result.stdout"
+
+    - name: Show rollback output
+      ansible.builtin.debug:
+        var: rollback_result.stdout_lines
+
+    - name: Check if a reboot is now required after rollback
+      ansible.builtin.command: needs-restarting -r
+      register: rollback_needs_restart
+      changed_when: false
+      failed_when: false
+
+    - name: Warn if a manual reboot is needed post-rollback
+      ansible.builtin.debug:
+        msg: >
+          WARNING: {{ inventory_hostname }} requires a reboot after rollback
+          to fully apply the reverted packages/kernel. This playbook does not
+          reboot automatically — schedule it manually.
+      when: rollback_needs_restart.rc == 1

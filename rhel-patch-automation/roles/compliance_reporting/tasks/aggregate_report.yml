@@ -1,0 +1,61 @@
+---
+# All tasks here run delegate_to: localhost (see roles/compliance_reporting/tasks/main.yml)
+# and must NOT use become, since ansible.cfg sets become=True globally for target
+# hosts — we don't want to sudo on the control node when writing local report files.
+- name: Aggregate compliance data and render reports (runs on the control node)
+  become: false
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Ensure report directory exists
+      ansible.builtin.file:
+        path: "{{ patch_report_dir }}"
+        state: directory
+        mode: "0750"
+
+    - name: Set report timestamp
+      ansible.builtin.set_fact:
+        report_timestamp: "{{ '%Y-%m-%dT%H:%M:%S' | strftime }}"
+        report_filestamp: "{{ '%Y%m%d_%H%M%S' | strftime }}"
+
+    - name: Build the fleet-wide list of compliance records from all hosts in the play
+      ansible.builtin.set_fact:
+        fleet_compliance: >-
+          {{ fleet_compliance | default([]) +
+             [hostvars[item].compliance_record] }}
+      loop: "{{ ansible_play_hosts_all }}"
+      when: hostvars[item].compliance_record is defined
+
+    - name: Build the fleet-wide list of patch summaries (if a patch run preceded this report)
+      ansible.builtin.set_fact:
+        fleet_patch_summary: >-
+          {{ fleet_patch_summary | default([]) +
+             [hostvars[item].patch_summary] }}
+      loop: "{{ ansible_play_hosts_all }}"
+      when: hostvars[item].patch_summary is defined
+
+    - name: Render Markdown compliance report
+      ansible.builtin.template:
+        src: compliance_report.md.j2
+        dest: "{{ patch_report_dir }}/compliance_report_{{ report_filestamp }}.md"
+        mode: "0640"
+      when: "'markdown' in compliance_report_formats"
+
+    - name: Render HTML compliance report
+      ansible.builtin.template:
+        src: compliance_report.html.j2
+        dest: "{{ patch_report_dir }}/compliance_report_{{ report_filestamp }}.html"
+        mode: "0640"
+      when: "'html' in compliance_report_formats"
+
+    - name: Symlink latest report for convenience
+      ansible.builtin.file:
+        src: "compliance_report_{{ report_filestamp }}.{{ item }}"
+        dest: "{{ patch_report_dir }}/compliance_report_latest.{{ item }}"
+        state: link
+        force: true
+      loop: "{{ compliance_report_formats | map('regex_replace', '^markdown$', 'md') | list }}"
+
+    - name: Print report location
+      ansible.builtin.debug:
+        msg: "Compliance report written to {{ patch_report_dir }}/compliance_report_{{ report_filestamp }}.{md,html}"

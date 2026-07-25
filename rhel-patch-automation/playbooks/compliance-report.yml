@@ -1,0 +1,10 @@
+---
+# Read-only: gathers compliance data and renders a report without
+# installing anything. Safe to run anytime, including on a schedule
+# (e.g. a nightly cron/AWX job) to track drift between patch runs.
+
+- name: Generate patch compliance report
+  hosts: all
+  gather_facts: true
+  roles:
+    - compliance_reporting

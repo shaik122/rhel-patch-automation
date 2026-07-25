@@ -1,0 +1,46 @@
+---
+# Main entry point. Each phase lives in its own file so it can be included
+# independently (e.g. compliance-report.yml only needs check_updates.yml).
+
+- name: Fail fast on unsupported OS
+  ansible.builtin.fail:
+    msg: >
+      patch_management only supports RHEL/derivatives (RHEL, Rocky, AlmaLinux,
+      CentOS Stream) 8 or 9. Detected: {{ ansible_distribution }} {{ ansible_distribution_major_version }}
+  when: >
+    ansible_os_family != "RedHat" or
+    ansible_distribution_major_version not in ["8", "9"]
+
+- name: Ensure report and state directories exist on control node
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+  loop:
+    - "{{ patch_report_dir }}"
+    - "{{ patch_state_dir }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Pre-checks
+  ansible.builtin.include_tasks: pre_checks.yml
+
+- name: Capture pre-patch state and optional LVM snapshot
+  ansible.builtin.include_tasks: snapshot.yml
+
+- name: Check available updates
+  ansible.builtin.include_tasks: check_updates.yml
+
+- name: Apply patches
+  ansible.builtin.include_tasks: apply_patches.yml
+  when: available_updates.results | length > 0
+
+- name: Reboot if required and allowed
+  ansible.builtin.include_tasks: reboot.yml
+  when:
+    - available_updates.results | length > 0
+    - patch_reboot_allowed
+
+- name: Post-patch validation
+  ansible.builtin.include_tasks: post_checks.yml

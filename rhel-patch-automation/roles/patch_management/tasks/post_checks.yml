@@ -1,0 +1,45 @@
+---
+- name: Confirm host is reachable
+  ansible.builtin.ping:
+
+- name: Check critical services are active
+  ansible.builtin.service_facts:
+
+- name: Build service health summary
+  ansible.builtin.set_fact:
+    patch_service_health: >-
+      {{ patch_service_health | default({}) | combine({
+        item: (ansible_facts.services[item + '.service'].state | default('not-found'))
+      }) }}
+  loop: "{{ patch_critical_services }}"
+
+- name: Fail (loudly, but don't stop the whole play) if a critical service is not running
+  ansible.builtin.debug:
+    msg: >
+      WARNING: service {{ item.key }} is '{{ item.value }}' on
+      {{ inventory_hostname }} after patching, expected 'running'.
+  loop: "{{ patch_service_health | dict2items }}"
+  when: item.value != 'running'
+
+- name: Restart any critical service that did not come back up
+  ansible.builtin.service:
+    name: "{{ item.key }}"
+    state: started
+    enabled: true
+  loop: "{{ patch_service_health | dict2items }}"
+  when: item.value != 'running'
+  register: service_recovery
+
+- name: Record final per-host patch summary for the compliance report
+  ansible.builtin.set_fact:
+    patch_summary:
+      host: "{{ inventory_hostname }}"
+      environment: "{{ patch_environment | default('unknown') }}"
+      updates_applied: "{{ available_updates.results | length }}"
+      security_only: "{{ patch_security_only }}"
+      rebooted: "{{ patch_reboot_required | default(false) and patch_reboot_allowed }}"
+      service_health: "{{ patch_service_health | default({}) }}"
+      status: >-
+        {{ 'DEGRADED' if (patch_service_health | default({}) | dict2items |
+           selectattr('value', 'ne', 'running') | list | length > 0)
+           else 'OK' }}

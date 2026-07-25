@@ -1,0 +1,72 @@
+---
+# Captures the installed package manifest and the current dnf transaction id
+# to the control node so a rollback playbook can target this exact run.
+# Optionally also takes an LVM snapshot for block-level rollback.
+
+- name: Record current dnf transaction id (rollback anchor)
+  ansible.builtin.shell: |
+    set -o pipefail
+    dnf history list | awk 'NR==3 {print $1}'
+  args:
+    executable: /bin/bash
+  register: pre_patch_transaction_id
+  changed_when: false
+
+- name: Record installed package manifest before patching
+  ansible.builtin.shell: |
+    set -o pipefail
+    rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n' | sort
+  args:
+    executable: /bin/bash
+  register: pre_patch_packages
+  changed_when: false
+
+- name: Write pre-patch state file to control node
+  ansible.builtin.copy:
+    content: |
+      host: {{ inventory_hostname }}
+      timestamp: {{ '%Y-%m-%dT%H:%M:%S' | strftime }}
+      pre_patch_transaction_id: {{ pre_patch_transaction_id.stdout | trim }}
+      package_count: {{ pre_patch_packages.stdout_lines | length }}
+      packages:
+      {% for pkg in pre_patch_packages.stdout_lines %}
+        - {{ pkg }}
+      {% endfor %}
+    dest: "{{ patch_state_dir }}/{{ inventory_hostname }}_pre_patch_state.yml"
+    mode: "0640"
+  delegate_to: localhost
+  become: false
+
+- name: Check for free extents in the volume group (LVM snapshot pre-req)
+  ansible.builtin.shell: |
+    set -o pipefail
+    vgs --noheadings -o vg_free --units g {{ patch_lvm_vg }} | tr -d ' g'
+  args:
+    executable: /bin/bash
+  register: vg_free_space
+  changed_when: false
+  failed_when: false
+  when: patch_lvm_snapshot_enabled
+
+- name: Take LVM snapshot of root volume before patching
+  community.general.lvol:
+    vg: "{{ patch_lvm_vg }}"
+    lv: "{{ patch_lvm_lv }}"
+    snapshot: "{{ patch_lvm_lv }}_prepatch_{{ '%Y%m%d%H%M' | strftime }}"
+    size: "{{ patch_lvm_snapshot_size }}"
+  when:
+    - patch_lvm_snapshot_enabled
+    - vg_free_space.stdout is defined
+    - vg_free_space.stdout | trim | length > 0
+    - (vg_free_space.stdout | trim | float) > (patch_lvm_snapshot_size | regex_replace('[^0-9.]', '') | float)
+  register: lvm_snapshot_result
+
+- name: Warn if LVM snapshot was requested but skipped
+  ansible.builtin.debug:
+    msg: >
+      LVM snapshot skipped for {{ inventory_hostname }}: insufficient free
+      extents in volume group {{ patch_lvm_vg }}. Rollback will rely on
+      `dnf history undo` only.
+  when:
+    - patch_lvm_snapshot_enabled
+    - lvm_snapshot_result is skipped

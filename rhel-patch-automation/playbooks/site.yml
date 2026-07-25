@@ -1,0 +1,8 @@
+---
+# End-to-end entry point: patch the fleet, then report on it.
+# Equivalent to running patch.yml, which already includes a report step,
+# but kept separate so `site.yml` reads as the canonical "run everything"
+# playbook referenced from the README / CI.
+
+- name: Import full patch run (includes compliance report)
+  ansible.builtin.import_playbook: patch.yml

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Patch Compliance Report — {{ report_timestamp }}</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; color: #1a1a1a; background: #fafafa; }
+  h1 { margin-bottom: 0.2rem; }
+  .meta { color: #666; margin-bottom: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; background: #fff; }
+  th, td { border: 1px solid #ddd; padding: 0.5rem 0.8rem; text-align: left; }
+  th { background: #2d3748; color: #fff; }
+  tr:nth-child(even) { background: #f2f2f2; }
+  .status-OK { color: #1a7f37; font-weight: 600; }
+  .status-DEGRADED { color: #c0392b; font-weight: 600; }
+  .sev-Critical { color: #c0392b; font-weight: 600; }
+  .sev-Important { color: #d68910; font-weight: 600; }
+  .sev-Moderate { color: #2874a6; }
+  .sev-Low { color: #555; }
+  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 1rem 1.5rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Patch Compliance Report</h1>
+<p class="meta">
+  Generated {{ report_timestamp }} &middot;
+  Environment: <strong>{{ patch_environment | default('unknown') }}</strong> &middot;
+  Hosts reported: <strong>{{ fleet_compliance | default([]) | length }}</strong>
+</p>
+
+<h2>Summary</h2>
+<table>
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Hosts with pending updates</td><td>{{ fleet_compliance | default([]) | selectattr('total_pending_updates', 'gt', 0) | list | length }}</td></tr>
+  <tr><td>Total pending security advisories</td><td>{{ fleet_compliance | default([]) | sum(attribute='security_advisory_count') | default(0) }}</td></tr>
+  <tr><td>Total Critical advisories</td><td>{{ fleet_compliance | default([]) | sum(attribute='critical_count') | default(0) }}</td></tr>
+  <tr><td>Total Important advisories</td><td>{{ fleet_compliance | default([]) | sum(attribute='important_count') | default(0) }}</td></tr>
+  <tr><td>Hosts not subscribed / registered</td><td>{{ fleet_compliance | default([]) | selectattr('subscribed', 'equalto', false) | list | length }}</td></tr>
+</table>
+
+{% if fleet_patch_summary is defined and fleet_patch_summary | length > 0 %}
+<h2>Patch Run Results</h2>
+<table>
+  <tr><th>Host</th><th>Mode</th><th>Updates Applied</th><th>Rebooted</th><th>Status</th></tr>
+  {% for s in fleet_patch_summary %}
+  <tr>
+    <td>{{ s.host }}</td>
+    <td>{{ 'security-only' if s.security_only else 'full' }}</td>
+    <td>{{ s.updates_applied }}</td>
+    <td>{{ 'yes' if s.rebooted else 'no' }}</td>
+    <td class="status-{{ s.status }}">{{ s.status }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<h2>Per-Host Detail</h2>
+{% for h in fleet_compliance | default([]) %}
+<div class="card">
+  <h3>{{ h.host }}</h3>
+  <p>
+    <strong>OS:</strong> {{ h.os }} &middot;
+    <strong>Pending updates:</strong> {{ h.total_pending_updates }} &middot;
+    <strong>Subscribed:</strong> {{ h.subscribed }} &middot;
+    <strong>Insights:</strong> {{ h.insights_registered }}
+  </p>
+  {% if h.security_advisories | length > 0 %}
+  <table>
+    <tr><th>Advisory</th><th>Severity</th><th>Package</th></tr>
+    {% for a in h.security_advisories %}
+    <tr>
+      <td>{{ a.advisory }}</td>
+      <td class="sev-{{ a.severity }}">{{ a.severity }}</td>
+      <td>{{ a.package }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p><em>No pending security advisories.</em></p>
+  {% endif %}
+</div>
+{% endfor %}
+
+<p class="meta">Generated automatically by the <code>compliance_reporting</code> Ansible role.</p>
+</body>
+</html>

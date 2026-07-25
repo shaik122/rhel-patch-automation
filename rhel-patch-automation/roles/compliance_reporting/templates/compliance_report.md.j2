@@ -1,0 +1,47 @@
+# Patch Compliance Report
+
+**Generated:** {{ report_timestamp }}
+**Environment:** {{ patch_environment | default('unknown') }}
+**Hosts reported:** {{ fleet_compliance | default([]) | length }}
+
+## Summary
+
+| Metric | Value |
+|---|---|
+| Hosts with pending updates | {{ fleet_compliance | default([]) | selectattr('total_pending_updates', 'gt', 0) | list | length }} |
+| Total pending security advisories | {{ fleet_compliance | default([]) | sum(attribute='security_advisory_count') | default(0) }} |
+| Total Critical advisories | {{ fleet_compliance | default([]) | sum(attribute='critical_count') | default(0) }} |
+| Total Important advisories | {{ fleet_compliance | default([]) | sum(attribute='important_count') | default(0) }} |
+| Hosts not subscribed / registered | {{ fleet_compliance | default([]) | selectattr('subscribed', 'equalto', false) | list | length }} |
+
+{% if fleet_patch_summary is defined and fleet_patch_summary | length > 0 %}
+## Patch Run Results
+
+| Host | Mode | Updates Applied | Rebooted | Status |
+|---|---|---|---|---|
+{% for s in fleet_patch_summary %}
+| {{ s.host }} | {{ 'security-only' if s.security_only else 'full' }} | {{ s.updates_applied }} | {{ 'yes' if s.rebooted else 'no' }} | {{ s.status }} |
+{% endfor %}
+{% endif %}
+
+## Per-Host Detail
+
+{% for h in fleet_compliance | default([]) %}
+### {{ h.host }}
+
+- **OS:** {{ h.os }}
+- **Pending updates (total):** {{ h.total_pending_updates }}
+- **Pending security advisories:** {{ h.security_advisory_count }} (Critical: {{ h.critical_count }}, Important: {{ h.important_count }}, Moderate: {{ h.moderate_count }}, Low: {{ h.low_count }})
+- **Subscribed:** {{ h.subscribed }}
+- **Insights registered:** {{ h.insights_registered }}
+{% if h.security_advisories | length > 0 %}
+- **Advisories:**
+{% for a in h.security_advisories %}
+  - `{{ a.advisory }}` ({{ a.severity }}) — {{ a.package }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
+
+---
+*Report generated automatically by the `compliance_reporting` Ansible role. Do not edit by hand.*

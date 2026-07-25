@@ -1,0 +1,13 @@
+### {{ patch_summary.host }}
+
+- **Environment:** {{ patch_summary.environment }}
+- **Mode:** {{ 'security-only' if patch_summary.security_only else 'full' }}
+- **Updates applied:** {{ patch_summary.updates_applied }}
+- **Rebooted:** {{ 'yes' if patch_summary.rebooted else 'no' }}
+- **Status:** {{ patch_summary.status }}
+{% if patch_summary.service_health %}
+- **Service health:**
+{% for svc, state in patch_summary.service_health.items() %}
+  - `{{ svc }}`: {{ state }}
+{% endfor %}
+{% endif %}

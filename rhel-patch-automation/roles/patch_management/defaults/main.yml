@@ -1,0 +1,35 @@
+---
+# Whether to patch only security errata (true) or all available updates (false)
+patch_security_only: true
+
+# Whether the role is allowed to reboot the host when a reboot is required.
+# When false, the host is patched but left running the old kernel/libs until
+# someone reboots it manually.
+patch_reboot_allowed: false
+
+# How long to wait for a host to come back after a reboot
+patch_reboot_timeout: 600
+
+# Take an LVM snapshot of the root volume group before patching, so a bad
+# patch run can be rolled back at the block level rather than only via
+# `dnf history undo`. Requires the host to actually be on LVM with free
+# extents in the volume group.
+patch_lvm_snapshot_enabled: false
+patch_lvm_vg: rhel
+patch_lvm_lv: root
+patch_lvm_snapshot_size: 5G
+
+# Packages to hold back from patching regardless of security_only setting.
+# Supports dnf-style globs, e.g. "kernel*".
+patch_excluded_packages: []
+
+# Services expected to be active/enabled after patching completes.
+patch_critical_services: []
+
+# Where the role writes its per-host facts/state for the compliance report
+# to pick up. Relative paths are resolved against playbook_dir.
+patch_report_dir: "{{ playbook_dir }}/../reports"
+
+# Directory on the control node where pre-patch package manifests are kept
+# for rollback reference.
+patch_state_dir: "{{ patch_report_dir }}/state"

@@ -1,0 +1,14 @@
+---
+- name: Reboot host
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ patch_reboot_timeout }}"
+    msg: "Rebooting after patch run triggered by Ansible"
+    pre_reboot_delay: 5
+  listen: "reboot if required"
+
+- name: Restart critical services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: restarted
+  loop: "{{ patch_critical_services }}"
+  listen: "restart critical services"

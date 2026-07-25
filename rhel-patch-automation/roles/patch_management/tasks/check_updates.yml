@@ -1,0 +1,32 @@
+---
+- name: List available security errata
+  ansible.builtin.command: dnf updateinfo list security --quiet
+  register: security_errata_raw
+  changed_when: false
+  failed_when: false
+
+- name: Check for any available updates (dry-run, no changes made)
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    exclude: "{{ patch_excluded_packages | join(',') if patch_excluded_packages else omit }}"
+  check_mode: true
+  register: available_updates_check
+
+- name: Build normalized list of pending updates
+  ansible.builtin.set_fact:
+    available_updates:
+      results: "{{ available_updates_check.results | default([]) }}"
+
+- name: Count pending security errata
+  ansible.builtin.set_fact:
+    pending_security_count: >-
+      {{ (security_errata_raw.stdout_lines | default([]) |
+          select('match', '^[A-Za-z0-9_-]+ +Security') | list) | length }}
+
+- name: Report update status for this host
+  ansible.builtin.debug:
+    msg: >
+      {{ inventory_hostname }}: {{ available_updates.results | length }} package(s)
+      pending ({{ pending_security_count }} security-related).
+      Mode: {{ 'security-only' if patch_security_only else 'full' }}.

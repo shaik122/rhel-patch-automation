@@ -1,0 +1,14 @@
+---
+ansible_user: svc_ansible
+ansible_python_interpreter: /usr/bin/python3
+
+patch_environment: staging
+patch_security_only: false
+patch_reboot_allowed: true
+patch_lvm_snapshot_enabled: false
+patch_excluded_packages: []
+patch_report_dir: "{{ playbook_dir }}/../reports"
+
+patch_critical_services:
+  - sshd
+  - chronyd
