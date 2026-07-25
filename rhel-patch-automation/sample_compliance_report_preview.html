@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Patch Compliance Report — 2026-07-25T19:47:29.550642</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; color: #1a1a1a; background: #fafafa; }
+  h1 { margin-bottom: 0.2rem; }
+  .meta { color: #666; margin-bottom: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; background: #fff; }
+  th, td { border: 1px solid #ddd; padding: 0.5rem 0.8rem; text-align: left; }
+  th { background: #2d3748; color: #fff; }
+  tr:nth-child(even) { background: #f2f2f2; }
+  .status-OK { color: #1a7f37; font-weight: 600; }
+  .status-DEGRADED { color: #c0392b; font-weight: 600; }
+  .sev-Critical { color: #c0392b; font-weight: 600; }
+  .sev-Important { color: #d68910; font-weight: 600; }
+  .sev-Moderate { color: #2874a6; }
+  .sev-Low { color: #555; }
+  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 1rem 1.5rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Patch Compliance Report</h1>
+<p class="meta">
+  Generated 2026-07-25T19:47:29.550642 &middot;
+  Environment: <strong>production</strong> &middot;
+  Hosts reported: <strong>2</strong>
+</p>
+
+<h2>Summary</h2>
+<table>
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Hosts with pending updates</td><td>1</td></tr>
+  <tr><td>Total pending security advisories</td><td>2</td></tr>
+  <tr><td>Total Critical advisories</td><td>1</td></tr>
+  <tr><td>Total Important advisories</td><td>1</td></tr>
+  <tr><td>Hosts not subscribed / registered</td><td>1</td></tr>
+</table>
+
+
+<h2>Patch Run Results</h2>
+<table>
+  <tr><th>Host</th><th>Mode</th><th>Updates Applied</th><th>Rebooted</th><th>Status</th></tr>
+  
+  <tr>
+    <td>web01.example.internal</td>
+    <td>security-only</td>
+    <td>5</td>
+    <td>yes</td>
+    <td class="status-OK">OK</td>
+  </tr>
+  
+</table>
+
+
+<h2>Per-Host Detail</h2>
+
+<div class="card">
+  <h3>web01.example.internal</h3>
+  <p>
+    <strong>OS:</strong> RedHat 9.4 &middot;
+    <strong>Pending updates:</strong> 12 &middot;
+    <strong>Subscribed:</strong> True &middot;
+    <strong>Insights:</strong> True
+  </p>
+  
+  <table>
+    <tr><th>Advisory</th><th>Severity</th><th>Package</th></tr>
+    
+    <tr>
+      <td>RHSA-2024:1234</td>
+      <td class="sev-Important">Important</td>
+      <td>bash-5.1.8-6.el9.x86_64</td>
+    </tr>
+    
+    <tr>
+      <td>RHSA-2024:9999</td>
+      <td class="sev-Critical">Critical</td>
+      <td>kernel-5.14.0-362.el9.x86_64</td>
+    </tr>
+    
+  </table>
+  
+</div>
+
+<div class="card">
+  <h3>db01.example.internal</h3>
+  <p>
+    <strong>OS:</strong> RedHat 8.10 &middot;
+    <strong>Pending updates:</strong> 0 &middot;
+    <strong>Subscribed:</strong> False &middot;
+    <strong>Insights:</strong> False
+  </p>
+  
+  <p><em>No pending security advisories.</em></p>
+  
+</div>
+
+
+<p class="meta">Generated automatically by the <code>compliance_reporting</code> Ansible role.</p>
+</body>
+</html>
